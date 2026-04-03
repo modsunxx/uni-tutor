@@ -33,8 +33,6 @@ npm install
 คัดลอกไฟล์ .env.example แล้วเปลี่ยนชื่อเป็น .env
 
 ขอรหัสลับของ Supabase (URL และ Anon Key) จากหัวหน้าทีม แล้วนำมาใส่ในไฟล์ .env
-
-Code snippet
 PUBLIC_SUPABASE_URL=ใส่ลิงก์ตรงนี้
 PUBLIC_SUPABASE_ANON_KEY=ใส่คีย์ตรงนี้
 (⚠️ ข้อควรระวัง: ห้ามนำไฟล์ .env อัปโหลดขึ้น GitHub เด็ดขาด)
