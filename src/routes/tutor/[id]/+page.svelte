@@ -13,6 +13,9 @@
 	let selectedSlot = $state<any>(null);
 	let bookingNote = $state('');
 
+	// 🌟 เพิ่ม State สำหรับคุม Animation ปุ่มกดส่ง
+	let sendStatus = $state<'idle' | 'sending' | 'success'>('idle');
+
 	onMount(async () => {
 		const tutorId = $page.params.id;
 		const { data: profileData } = await supabase
@@ -34,6 +37,7 @@
 		const {
 			data: { session }
 		} = await supabase.auth.getSession();
+
 		if (!session) {
 			alert('กรุณาเข้าสู่ระบบก่อนจองครับ');
 			goto('/');
@@ -43,6 +47,16 @@
 			alert('⚠️ กรุณาเลือกวิชาและเวลาที่ต้องการเรียนครับ');
 			return;
 		}
+		if (!bookingNote.trim()) {
+			alert('💬 พิมพ์ข้อความทักทาย หรือบอกสิ่งที่อยากเน้นให้ติวเตอร์รู้สักหน่อยนะครับ');
+			return;
+		}
+
+		// 🌟 1. เปลี่ยนสถานะเป็น "กำลังส่ง"
+		sendStatus = 'sending';
+
+		// (จำลองการหน่วงเวลา 1 วินาที ให้คนใช้ได้เห็นแอนิเมชันสวยๆ เผื่อเน็ตเร็วไป)
+		await new Promise((resolve) => setTimeout(resolve, 1000));
 
 		const { error } = await supabase.from('bookings').insert({
 			student_id: session.user.id,
@@ -54,12 +68,36 @@
 			note: bookingNote,
 			status: 'pending'
 		});
-		if (error) alert('เกิดข้อผิดพลาด: ' + error.message);
-		else {
-			alert('🎉 ส่งคำขอจองสำเร็จ! รอติวเตอร์ตอบรับนะครับ');
-			selectedSubject = '';
-			selectedSlot = null;
-			bookingNote = '';
+
+		if (error) {
+			alert('เกิดข้อผิดพลาด: ' + error.message);
+			sendStatus = 'idle'; // กลับไปสถานะเดิมถ้าพัง
+		} else {
+			// 🌟 2. เปลี่ยนสถานะเป็น "ส่งสำเร็จ"
+			sendStatus = 'success';
+
+			// 🚀 3. สั่งให้หลังบ้าน (API Route) ส่งอีเมลแจ้งเตือน
+			// (เราปล่อยให้มันยิงไปเลย ไม่ต้องใส่ await ดักรอ เพื่อให้ปุ่มแอนิเมชันหน้าเว็บไหลลื่นต่อเนื่อง)
+			fetch('/api/send-email', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					tutorEmail: tutor.profiles?.email, // ส่งเข้าอีเมลติวเตอร์
+					tutorName: tutor.profiles?.full_name || 'ติวเตอร์',
+					studentEmail: session.user.email,
+					subject: selectedSubject,
+					timeSlot: `วัน${selectedSlot.day_of_week} ${selectedSlot.start_time.substring(0, 5)}-${selectedSlot.end_time.substring(0, 5)} น.`,
+					note: bookingNote
+				})
+			}).catch((err) => console.error('ไม่สามารถส่งอีเมลได้:', err));
+
+			// 🌟 4. รอ 3.5 วินาที แล้วรีเซ็ตฟอร์มกลับเป็นหน้าตาปกติ
+			setTimeout(() => {
+				sendStatus = 'idle';
+				selectedSubject = '';
+				selectedSlot = null;
+				bookingNote = '';
+			}, 3500);
 		}
 	};
 </script>
@@ -112,21 +150,18 @@
 									viewBox="0 0 24 24"
 									fill="currentColor"
 									class="h-20 w-20 opacity-50"
-								>
-									<path
+									><path
 										fill-rule="evenodd"
 										d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z"
 										clip-rule="evenodd"
-									/>
-								</svg>
+									/></svg
+								>
 							</div>
 						{/if}
-
 						<h1 class="mt-6 text-2xl font-bold text-gray-900">{tutor.profiles?.full_name}</h1>
 						<p class="mt-2 text-sm text-gray-500">
 							{tutor.faculty || 'ยังไม่ระบุคณะ'} • ปี {tutor.academic_year || '-'}
 						</p>
-
 						<div class="mt-6 inline-block rounded-2xl bg-[#f0faff] px-6 py-3">
 							<p class="text-sm text-gray-500">ค่าสอนเริ่มต้น</p>
 							<p class="text-2xl font-black text-[#02c2ff]">
@@ -135,7 +170,6 @@
 								>
 							</p>
 						</div>
-
 						{#if tutor.bio}
 							<div class="mt-8 text-left">
 								<p class="text-sm font-bold text-gray-900">แนะนำตัว</p>
@@ -168,9 +202,8 @@
 								{#each tutor.subjects as sub}
 									<span
 										class="rounded-xl bg-slate-50 px-4 py-2.5 text-sm font-medium text-gray-700 ring-1 ring-gray-200"
+										>{sub}</span
 									>
-										{sub}
-									</span>
 								{/each}
 							{:else}
 								<p class="text-sm text-gray-500">ติวเตอร์ยังไม่ได้เพิ่มวิชาที่สอน</p>
@@ -199,12 +232,11 @@
 									/></svg
 								>
 							</div>
-							<h2 class="text-2xl font-bold text-gray-900">จองเวลาเรียน</h2>
+							<h2 class="text-2xl font-bold text-gray-900">ทักแชทจองเวลาเรียน</h2>
 						</div>
 
 						<form onsubmit={handleBook} class="relative z-10 space-y-8">
 							<div>
-								<!-- svelte-ignore a11y_label_has_associated_control -->
 								<label class="mb-3 block text-sm font-bold text-gray-700"
 									>1. เลือกวิชาที่ต้องการเรียน</label
 								>
@@ -225,7 +257,6 @@
 							</div>
 
 							<div>
-								<!-- svelte-ignore a11y_label_has_associated_control -->
 								<label class="mb-3 block text-sm font-bold text-gray-700"
 									>2. เลือกเวลาที่สะดวก</label
 								>
@@ -241,9 +272,9 @@
 													: 'bg-slate-50 ring-1 ring-gray-200 hover:bg-slate-100'}"
 											>
 												<span class="font-bold text-gray-900">วัน{slot.day_of_week}</span>
-												<span class="mt-1 text-sm text-gray-500">
-													⏰ {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)} น.
-												</span>
+												<span class="mt-1 text-sm text-gray-500"
+													>⏰ {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)} น.</span
+												>
 											</button>
 										{/each}
 									</div>
@@ -255,32 +286,71 @@
 							</div>
 
 							<div>
-								<!-- svelte-ignore a11y_label_has_associated_control -->
 								<label class="mb-3 block text-sm font-bold text-gray-700"
-									>3. ข้อความเพิ่มเติมถึงติวเตอร์ (ถ้ามี)</label
+									>3. ข้อความถึงติวเตอร์</label
 								>
 								<textarea
 									bind:value={bookingNote}
-									placeholder="เช่น อยากเน้นเรื่องอะไรเป็นพิเศษ, นัดเจอกันที่ไหนดี..."
+									placeholder="พิมพ์ข้อความทักทาย เช่น อยากให้เน้นเรื่องไหนเป็นพิเศษ หรือสอบถามข้อมูลเพิ่มเติม..."
 									class="w-full rounded-2xl border border-gray-200 bg-slate-50 p-4 transition-all outline-none placeholder:text-gray-400 focus:border-[#02c2ff] focus:bg-white focus:ring-4 focus:ring-[#02c2ff]/10"
-									rows="3"
+									rows="4"
 								></textarea>
 							</div>
 
 							<button
 								type="submit"
-								class="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#02c2ff] py-4 text-lg font-bold text-white shadow-lg shadow-[#02c2ff]/30 transition-all hover:bg-[#13b5e8] hover:shadow-[#02c2ff]/40 active:scale-[0.98]"
+								disabled={sendStatus !== 'idle'}
+								class="relative flex w-full items-center justify-center overflow-hidden rounded-2xl py-4 text-lg font-bold text-white shadow-lg transition-all active:scale-[0.98] disabled:cursor-not-allowed
+                                {sendStatus === 'idle'
+									? 'bg-[#02c2ff] shadow-[#02c2ff]/30 hover:bg-[#13b5e8]'
+									: ''}
+                                {sendStatus === 'sending' ? 'bg-[#13b5e8] shadow-none' : ''}
+                                {sendStatus === 'success'
+									? 'bg-emerald-500 shadow-emerald-500/30'
+									: ''}"
 							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									viewBox="0 0 24 24"
-									fill="currentColor"
-									class="h-6 w-6"
-									><path
-										d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z"
-									/></svg
-								>
-								ส่งคำขอจองเวลาเรียน
+								{#if sendStatus === 'idle'}
+									<div class="flex items-center gap-2">
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											viewBox="0 0 24 24"
+											fill="currentColor"
+											class="h-6 w-6"
+											><path
+												d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z"
+											/></svg
+										>
+										<span>ส่งข้อความและจองเวลา</span>
+									</div>
+								{:else if sendStatus === 'sending'}
+									<div class="flex items-center gap-2">
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											viewBox="0 0 24 24"
+											fill="currentColor"
+											class="h-6 w-6 animate-pulse"
+											><path
+												d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z"
+											/></svg
+										>
+										<span class="animate-pulse">กำลังส่งข้อความ...</span>
+									</div>
+								{:else if sendStatus === 'success'}
+									<div class="flex animate-bounce items-center gap-2">
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											viewBox="0 0 24 24"
+											fill="currentColor"
+											class="h-6 w-6"
+											><path
+												fill-rule="evenodd"
+												d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z"
+												clip-rule="evenodd"
+											/></svg
+										>
+										<span>ส่งสำเร็จ! ติวเตอร์ได้รับข้อความแล้ว</span>
+									</div>
+								{/if}
 							</button>
 						</form>
 					</div>
