@@ -7,19 +7,22 @@
 	let session = $state<any>(null);
 	let userEmail = $state('');
 	let profileRole = $state('student');
-	let avatarUrl = $state(''); // 🌟 เพิ่มตัวแปรเก็บรูปโปรไฟล์
+	let avatarUrl = $state('');
+
+	// 🌟 1. เพิ่มตัวแปรเช็คการเปิด/ปิดเมนูในมือถือ
+	let isMobileMenuOpen = $state(false);
 
 	const loadUserData = async (currentSession: any) => {
 		userEmail = currentSession.user.email || '';
 		const { data: profileData } = await supabase
 			.from('profiles')
-			.select('role, avatar_url') // 🌟 ดึง avatar_url มาด้วย
+			.select('role, avatar_url')
 			.eq('id', currentSession.user.id)
 			.single();
 
 		if (profileData) {
 			profileRole = profileData.role;
-			avatarUrl = profileData.avatar_url || ''; // 🌟 เก็บค่า URL รูป
+			avatarUrl = profileData.avatar_url || '';
 		}
 	};
 
@@ -38,11 +41,17 @@
 			} else {
 				userEmail = '';
 				profileRole = 'student';
-				avatarUrl = ''; // 🌟 ล้างค่ารูปตอน Logout
+				avatarUrl = '';
 			}
 		});
 
 		return () => subscription.unsubscribe();
+	});
+
+	// 🌟 2. ให้ปิดเมนูมือถืออัตโนมัติเวลาเรากดเปลี่ยนหน้าเว็บ
+	$effect(() => {
+		const currentPath = $page.url.pathname; // จับใส่ตัวแปรให้ Linter สบายใจ
+		isMobileMenuOpen = false;
 	});
 
 	const handleLogout = async () => {
@@ -58,7 +67,31 @@
 >
 	<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 		<div class="relative flex h-16 items-center justify-between">
-			<div class="z-10 flex items-center gap-2">
+			<div class="z-10 flex items-center gap-3">
+				<button
+					onclick={() => (isMobileMenuOpen = !isMobileMenuOpen)}
+					class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-gray-600 transition-colors hover:bg-slate-100 md:hidden"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke-width="1.5"
+						stroke="currentColor"
+						class="h-6 w-6"
+					>
+						{#if isMobileMenuOpen}
+							<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+						{:else}
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+							/>
+						{/if}
+					</svg>
+				</button>
+
 				<div
 					class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#02c2ff] text-white shadow-md"
 				>
@@ -127,16 +160,14 @@
 									viewBox="0 0 24 24"
 									fill="currentColor"
 									class="mt-2 h-6 w-6"
-								>
-									<path
+									><path
 										fill-rule="evenodd"
 										d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z"
 										clip-rule="evenodd"
-									/>
-								</svg>
+									/></svg
+								>
 							</div>
 						{/if}
-
 						<span class="font-bold">ตั้งค่าบัญชี</span>
 					</a>
 					<button
@@ -154,4 +185,47 @@
 			</div>
 		</div>
 	</div>
+
+	{#if isMobileMenuOpen}
+		<div
+			class="absolute top-16 left-0 w-full border-b border-gray-100 bg-white shadow-lg md:hidden"
+		>
+			<div class="flex flex-col space-y-1 px-4 pt-2 pb-6">
+				<a
+					href="/home"
+					class="block rounded-xl px-4 py-3 text-sm font-bold transition-colors {$page.url
+						.pathname === '/home'
+						? 'bg-[#e6f9ff] text-[#02c2ff]'
+						: 'text-gray-600 hover:bg-slate-50'}">หน้าหลัก</a
+				>
+				<a
+					href="/smart-matching"
+					class="block rounded-xl px-4 py-3 text-sm font-bold transition-colors {$page.url
+						.pathname === '/smart-matching'
+						? 'bg-[#e6f9ff] text-[#02c2ff]'
+						: 'text-gray-600 hover:bg-slate-50'}">⚡ จับคู่อัจฉริยะ</a
+				>
+
+				{#if profileRole === 'tutor'}
+					<a
+						href="/dashboard"
+						class="block rounded-xl px-4 py-3 text-sm font-bold transition-colors {$page.url
+							.pathname === '/dashboard'
+							? 'bg-[#e6f9ff] text-[#02c2ff]'
+							: 'text-gray-600 hover:bg-slate-50'}">📊 แดชบอร์ดติวเตอร์</a
+					>
+				{/if}
+
+				{#if session}
+					<div class="my-2 border-t border-gray-100"></div>
+					<a
+						href="/profile"
+						class="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-gray-600 transition-colors hover:bg-slate-50"
+					>
+						⚙️ ตั้งค่าบัญชี
+					</a>
+				{/if}
+			</div>
+		</div>
+	{/if}
 </nav>
