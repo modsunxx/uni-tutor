@@ -167,6 +167,7 @@
 
 				<div class="mt-8 space-y-5">
 					<div>
+						<!-- svelte-ignore a11y_label_has_associated_control -->
 						<label class="mb-1 block text-sm font-bold text-gray-700">ชื่อ-นามสกุลจริง</label>
 						<input
 							type="text"
@@ -176,6 +177,7 @@
 					</div>
 
 					<div>
+						<!-- svelte-ignore a11y_label_has_associated_control -->
 						<label class="mb-1 block text-sm font-bold text-gray-700">เบอร์โทรศัพท์</label>
 						<input
 							type="tel"

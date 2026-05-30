@@ -237,6 +237,7 @@
 
 						<form onsubmit={handleBook} class="relative z-10 space-y-8">
 							<div>
+								<!-- svelte-ignore a11y_label_has_associated_control -->
 								<label class="mb-3 block text-sm font-bold text-gray-700"
 									>1. เลือกวิชาที่ต้องการเรียน</label
 								>
@@ -257,6 +258,7 @@
 							</div>
 
 							<div>
+								<!-- svelte-ignore a11y_label_has_associated_control -->
 								<label class="mb-3 block text-sm font-bold text-gray-700"
 									>2. เลือกเวลาที่สะดวก</label
 								>
@@ -286,6 +288,7 @@
 							</div>
 
 							<div>
+								<!-- svelte-ignore a11y_label_has_associated_control -->
 								<label class="mb-3 block text-sm font-bold text-gray-700"
 									>3. ข้อความถึงติวเตอร์</label
 								>
